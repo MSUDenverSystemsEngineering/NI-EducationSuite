@@ -141,11 +141,11 @@ Try {
 
 		## <Perform Installation tasks here>
 
-		$tempExitCode1 = Execute-Process "$dirFiles\ni-cds-educational_14.3_online.exe" -Parameters "--passive --accept-eulas --prevent-reboot"
+		$tempExitCode1 = Execute-Process "$dirFiles\ni-cds-educational_14.3_online.exe" -Parameters "--quiet --accept-eulas --prevent-reboot"
 
 		Show-InstallationProgress -StatusMessage "Installing LabVIEW"
 
-		$tempExitCode2 = Execute-Process "$dirFiles\ni-labview-2020_20.0_suite_online_repack3.exe" -Parameters "--passive --accept-eulas --prevent-reboot"
+		$tempExitCode2 = Execute-Process "$dirFiles\ni-labview-2020_20.0_suite_online_repack3.exe" -Parameters "--quiet --accept-eulas --prevent-reboot"
 
 		#Handling of exit codes since we are running two programs and "-125071" means reboot needed.
 		If (($tempExitCode1.ExitCode -ne "0") -and ($tempExitCode1.ExitCode -ne "-125071")) {$mainExitCode = $tempExitCode1.ExitCode}
