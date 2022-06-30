@@ -64,7 +64,7 @@ Try {
 	## Variables: Application
 	[string]$appVendor = 'NI'
 	[string]$appName = 'Education Suite'
-	[string]$appVersion = '14.3'
+	[string]$appVersion = ''
 	[string]$appArch = 'x64'
 	[string]$appLang = 'EN'
 	[string]$appRevision = '01'
@@ -81,6 +81,8 @@ Try {
 
 	## Variables: Exit Code
 	[int32]$mainExitCode = 0
+	[int32]$tempExitCode1 = 0
+	[int32]$tempExitCode2 = 0
 
 	## Variables: Script
 	[string]$deployAppScriptFriendlyName = 'Deploy Application'
@@ -121,7 +123,7 @@ Try {
 		Show-InstallationWelcome -CloseApps 'multisim,ultiboard,nilauncher,nilicensemanager,nipackagemanager,labview' -CloseAppsCountdown 60 -CheckDiskSpace -PersistPrompt
 
 		## Show Progress Message (with the default message)
-		Show-InstallationProgress
+		Show-InstallationProgress -StatusMessage "Installing Circuit Design Suite (Multisim and Ultiboard)"
 
 		## <Perform Pre-Installation tasks here>
 
@@ -139,9 +141,20 @@ Try {
 
 		## <Perform Installation tasks here>
 
-		$exitCode = Execute-Process "$dirFiles\Install.exe" -Parameters "--passive --accept-eulas --prevent-reboot"
-		If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+		$tempExitCode1 = Execute-Process "$dirFiles\ni-cds-educational_14.3_online.exe" -Parameters "--passive --accept-eulas --prevent-reboot"
 
+		Show-InstallationProgress -StatusMessage "Installing LabVIEW"
+
+		$tempExitCode2 = Execute-Process "$dirFiles\ni-labview-2020_20.0_suite_online_repack3.exe" -Parameters "--passive --accept-eulas --prevent-reboot"
+
+		#Handling of exit codes since we are running two programs and "-125071" means reboot needed.
+		If (($tempExitCode1.ExitCode -ne "0") -and ($tempExitCode1.ExitCode -ne "-125071")) {$mainExitCode = $tempExitCode1.ExitCode}
+		Elseif (($tempExitCode2.ExitCode -ne "0") -and ($tempExitCode2.ExitCode -ne "-125071")) {$mainExitCode = $tempExitCode2.ExitCode}
+		Elseif (($tempExitCode1.ExitCode -eq "-125071") -and  ($tempExitCode2.ExitCode -eq "-125071")) {$mainExitCode = -125071}
+		Elseif (($tempExitCode1.ExitCode -eq "-125071") -and  ($tempExitCode2.ExitCode -eq "-0")) {$mainExitCode = -125071}
+		Elseif (($tempExitCode1.ExitCode -eq "0") -and  ($tempExitCode2.ExitCode -eq "-125071")) {$mainExitCode = -125071}
+		Elseif (($tempExitCode1.ExitCode -eq "0") -and  ($tempExitCode2.ExitCode -eq "0")) {$mainExitCode = 0}
+		
 
 		##*===============================================
 		##* POST-INSTALLATION
@@ -151,7 +164,7 @@ Try {
 		## <Perform Post-Installation tasks here>
 
 		## Add license server
-		Execute-Process -Path "$envProgramFilesX86\National Instruments\Shared\License ManagerNILicensingCmd.exe" -Parameters "/addservers VMWAS22:27010"
+		Execute-Process -Path "$envProgramFilesX86\National Instruments\Shared\License Manager\NILicensingCmd.exe" -Parameters "/addservers VMWAS22:27010"
 
 		## Display a message at the end of the install
 		If (-not $useDefaultMsi) {}
@@ -236,7 +249,7 @@ Try {
 		[string]$installPhase = 'Post-Repair'
 
 		## <Perform Post-Repair tasks here>
-		Execute-Process -Path "$envProgramFilesX86\National Instruments\Shared\License ManagerNILicensingCmd.exe" -Parameters "/addservers VMWAS22:27010"
+		Execute-Process -Path "$envProgramFilesX86\National Instruments\Shared\License Manager\NILicensingCmd.exe" -Parameters "/addservers VMWAS22:27010"
 
 
     }
@@ -258,8 +271,8 @@ Catch {
 # SIG # Begin signature block
 # MIImVgYJKoZIhvcNAQcCoIImRzCCJkMCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDaqUb0Ej7S84mn
-# AQOR9RzzbXbpjzNifOClbkl+wwPScaCCH8EwggVvMIIEV6ADAgECAhBI/JO0YFWU
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA0T06wbiAAVRLD
+# Ud+KqqRRwxFMxvoaP0XxbZM/G4CbKKCCH8EwggVvMIIEV6ADAgECAhBI/JO0YFWU
 # jTanyYqJ1pQWMA0GCSqGSIb3DQEBDAUAMHsxCzAJBgNVBAYTAkdCMRswGQYDVQQI
 # DBJHcmVhdGVyIE1hbmNoZXN0ZXIxEDAOBgNVBAcMB1NhbGZvcmQxGjAYBgNVBAoM
 # EUNvbW9kbyBDQSBMaW1pdGVkMSEwHwYDVQQDDBhBQUEgQ2VydGlmaWNhdGUgU2Vy
@@ -433,32 +446,32 @@ Catch {
 # ZDErMCkGA1UEAxMiU2VjdGlnbyBQdWJsaWMgQ29kZSBTaWduaW5nIENBIFIzNgIR
 # AKVN33D73PFMVIK48rFyyjEwDQYJYIZIAWUDBAIBBQCggYQwGAYKKwYBBAGCNwIB
 # DDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGCNwIBBDAcBgorBgEE
-# AYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0BCQQxIgQgM/d8mztm2e1L
-# yz04A71JDCr3IHmTDi9azXecNbzXV78wDQYJKoZIhvcNAQEBBQAEggGAH5cDSxRE
-# R01hqiBnXA1oz3vWeXjXiS37ikhGCYgi0wVaqW3ugYDALuV+bFTxiybTCikQwUh+
-# Xk56uKjsgb/2Q/352gzFhgVUMr9EQL0a911AJxjDebc0vqhZM9jq6lb0ABNN1iX/
-# bDcGo96rHdIxBzr4TAMvZBIHp7aImW6tvNNgURBZRfQLwcXXubuTCEpoKAsXpfe2
-# ZfjLJoW4b2MFd+/OOa5pEbK8rjEcVxolqffJXhke6NiQU48wuWuDcQNQa6OFXv9I
-# pOTlog+7lcBYqH+CVn5PwGMv92VrF9CcmzTf9M2RjNi1dSh1JmvqE+8gA1Rb85Ti
-# Wypt2jTfOcHsssK2sCE1evB6KjHRsIQaptzpUk1s0BgVHfRUKnQjiT/RItihHpb6
-# eR+gK/JyFZK+ehqCWDieVMExbWPUnz/Fn0vjV+bW9M5iBprZp0EbUqacgmz5gpwN
-# ZpBPhyVZwmof03ZM7xakJVjodS6PS8stiJR50torOeY8Vz2oztmkvnAToYIDTDCC
+# AYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0BCQQxIgQghszi4j4Lu7b8
+# Q7LZyEOMcFAju8TJq+uoeCCecM5FJGEwDQYJKoZIhvcNAQEBBQAEggGAIkJOyfFm
+# cCBiczNyjHhWfGChkKT0FkzyYpyf77iqxQwANNoFU0t+koyVtosAF9kPdOZwvMwT
+# y9nSsgXFIirNj6j+UeXDGC2NOQAqt0AQnDm9M5Ug/BHpu/qfxQLcC4FS8VnTFS6O
+# /P/HsvYak1nZQzb7X9KjeFv8HoI0O1Q1jbcrrX6v2Taqy9Rk0ATxK/n10mh/wBHD
+# TyMj+3lTtV30SjvnlPhqcz4gsEKLxKtOiru7pkuMGHiCUNZk26oYB0rTx12eFhOQ
+# hFIL/KFnQ9RZx5/zDY/ZOCldJTRcMgWQ/CyxjwPOMul/qo7eQzFQ7x+QsTXRr2xI
+# xWCdMBWNhzYwFHUx91cYY5yfP69hdzjLd76xcIYYlV6f2thIY4liKwfsJdMIG7lI
+# Tw0yX2mEg0aKkjrWPdihvJQtOFvAAiPOW11bcMc1MkKAnXZKX9IV3pGTLy5wDCvf
+# d7eyHoyNKIED+gTvwObZo3iHNKi7mtb/b13hfZUDPJTIHovdHnRLDIu4oYIDTDCC
 # A0gGCSqGSIb3DQEJBjGCAzkwggM1AgEBMIGSMH0xCzAJBgNVBAYTAkdCMRswGQYD
 # VQQIExJHcmVhdGVyIE1hbmNoZXN0ZXIxEDAOBgNVBAcTB1NhbGZvcmQxGDAWBgNV
 # BAoTD1NlY3RpZ28gTGltaXRlZDElMCMGA1UEAxMcU2VjdGlnbyBSU0EgVGltZSBT
 # dGFtcGluZyBDQQIRAJA5f5rSSjoT8r2RXwg4qUMwDQYJYIZIAWUDBAICBQCgeTAY
-# BgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJBTEPFw0yMjA2Mjgx
-# OTE2NDNaMD8GCSqGSIb3DQEJBDEyBDDM7Idm+xUYwX7RYs6n2F27m54NQ8LwRQxh
-# DY0jM0K6PZZIYFKS8XtjM5HiOmZ1g/wwDQYJKoZIhvcNAQEBBQAEggIAMNwj0IMI
-# 6LNb/dxsop+HcwIXUSjJ652lnNaXb/DnfMZX6JZz3hBnclic4nANMZxfE37ulGjJ
-# +58LFQvA2jFiBqtBTbQNM1HjhqtFdUA6vjaQDbr/sEikYNTZdB/DQfJ0xscafaeA
-# Si6fztQWIYm7A+KqmmF3/xAhyzoEbY//+7K1uEnolxhHK4V8i1MvcEJuhtEXm1gF
-# Zw5nMoE0pTWaCayLrzNIAjLAytVrA8CssUVkT2FUku+zP+5sMmFeUv7xOPeAh8fa
-# Uvp0RqpQRWWavG0wPjBlRmCEma/kIIhvMgtwjwp2bXKukigPdFGKKWBr2GZGsgB4
-# MYrbZcMLBFwBMAawa5ngs2cwUE2dUr8bA1kii4qvFxa/x0VwljvJgcbSQS5dp4cR
-# I3TFqPLklj8IvNVq5qMGeLQwsHq22n0glmfOl+MW6pqNgCt3y90xE+4v6Q0/mJOq
-# 7ggI+YFBE7utAhfZBEqnbyGbr9E+wvjAUwBMx2cKuAUHY1Sk1ewY3G39tu1Aoacy
-# Fj1ZAxQd+XN3SqQnSFVyEnaqVu5ZSYcrVj8DwfhhJxwpvgC1A7u/w1/uVwZGi3TU
-# 16gIhpd1OTj95KYTtJhI/XdIv0RswXl+KVX4f6O7C9zqr3q4F1uWA9MuRt7yX/vj
-# +JDX/1or7QEAYPek2L/bG40kuyU04rPFhb4=
+# BgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJBTEPFw0yMjA2MzAw
+# MDI4NTNaMD8GCSqGSIb3DQEJBDEyBDC5jhOi9XsGaRZBl9vFpFw/XPS0z+0TZh3S
+# RWA3laHTvY0aDDjoJ12ayjcFi4ZLIpEwDQYJKoZIhvcNAQEBBQAEggIATY3LYNq+
+# fngmu4rd2HPZmQu3d6e+9f5MkT3takUcFGo/a4xAM0uF7Lu25je7zooCF5oP8y6P
+# 4wyZOLFz1UfOrrw7TnZ5yOUK1v6CTknED/BUb8MtqVxWdFPwMvPX8XV8gzzpkdMQ
+# WCdxFbhMe7zCnMb1eW9Sdlx1j3t92WROSGAOXpkmHjQReg5XTr74avTrgbKp1vh8
+# fJ/GoQEAc10/FFmn/oozzb/8trAcjgToY+U232dhXmmbRK0YjKsp1TbKtVgvJNhn
+# cG8BPJQNQTe23USqlFnDP2ET1YOZzreju7Z9mBPV/kjwDnR00xGU9t0NgOTQk7dK
+# vTio4ps3zm5vBXQQfFRWsF/wdg8v4xgR0zuFOOsEu6O99K8P4OK2dr8GoGX4E3uI
+# 3rk021bY/q9hkLvInMIS3SaBmGpgpIWyVP5Ng/3mEAV7MB/1mpHZD1ow86aVycD0
+# Ry/ufN541W7TNVZWRiOxnEkiDCna7svEPyWGuyADLK2HSegALH+WXd6DNVaFU64W
+# xMX2PzDNhXodXSj73TXE1OsjYwelVzvd5KnozUk54TtQgnKX0qVvaY2RxEmA9ANY
+# MRmJw1fuEIgZzWIYma5WMinv99qnRy1ezxk6wtINwav7KdmRTpUiQpjR9N2z2+ev
+# ZLQbb2AiSE8kkZPU3zFCy++J1/veA68eFao=
 # SIG # End signature block
