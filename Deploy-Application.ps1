@@ -64,7 +64,7 @@ Try {
 	## Variables: Application
 	[string]$appVendor = 'NI'
 	[string]$appName = 'Education Suite'
-	[string]$appVersion = ''
+	[string]$appVersion = '2022'
 	[string]$appArch = 'x64'
 	[string]$appLang = 'EN'
 	[string]$appRevision = '01'
@@ -123,7 +123,7 @@ Try {
 		Show-InstallationWelcome -CloseApps 'multisim,ultiboard,nilauncher,nilicensemanager,nipackagemanager,labview' -CloseAppsCountdown 60 -CheckDiskSpace -PersistPrompt
 
 		## Show Progress Message (with the default message)
-		Show-InstallationProgress -StatusMessage "Installing Circuit Design Suite (Multisim and Ultiboard)"
+		Show-InstallationProgress -StatusMessage "Verifying installation"
 
 		## <Perform Pre-Installation tasks here>
 
@@ -141,20 +141,26 @@ Try {
 
 		## <Perform Installation tasks here>
 
-		$tempExitCode1 = Execute-Process "$dirFiles\ni-cds-educational_14.3_online.exe" -Parameters "--quiet --accept-eulas --prevent-reboot"
+		##Programs do not actually get installed from this package. LabVIEW and Circuit Design Suite are set as dependencies to this from within SCCM. The code below checks to see that they were installed correctly.
 
-		Show-InstallationProgress -StatusMessage "Installing LabVIEW"
-
-		$tempExitCode2 = Execute-Process "$dirFiles\ni-labview-2020_20.0_suite_online_repack3.exe" -Parameters "--quiet --accept-eulas --prevent-reboot"
-
-		#Handling of exit codes since we are running two programs and "-125071" means reboot needed.
-		If (($tempExitCode1.ExitCode -ne "0") -and ($tempExitCode1.ExitCode -ne "-125071")) {$mainExitCode = $tempExitCode1.ExitCode}
-		Elseif (($tempExitCode2.ExitCode -ne "0") -and ($tempExitCode2.ExitCode -ne "-125071")) {$mainExitCode = $tempExitCode2.ExitCode}
-		Elseif (($tempExitCode1.ExitCode -eq "-125071") -and  ($tempExitCode2.ExitCode -eq "-125071")) {$mainExitCode = -125071}
-		Elseif (($tempExitCode1.ExitCode -eq "-125071") -and  ($tempExitCode2.ExitCode -eq "-0")) {$mainExitCode = -125071}
-		Elseif (($tempExitCode1.ExitCode -eq "0") -and  ($tempExitCode2.ExitCode -eq "-125071")) {$mainExitCode = -125071}
-		Elseif (($tempExitCode1.ExitCode -eq "0") -and  ($tempExitCode2.ExitCode -eq "0")) {$mainExitCode = 0}
-
+		If (Test-Path -Path "$envProgramFilesX86\National Instruments\Circuit Design Suite 14.3\multisim.exe"){
+			Write-Log -Message "Multisim was installed correctly."}
+		Else {
+			$mainExitCode = 200
+			Write-Log -Message "Multsim was not installed correctly. Program exe is missing from C:\ProgramFiles (x86)\National Instruments\Circuit Design Suite 14.3\multisim.exe " -Severity 3
+		}
+		If (Test-Path -Path "$envProgramFilesX86\National Instruments\Circuit Design Suite 14.3\ultiboard.exe"){
+			Write-Log -Message "Ultiboard was installed correctly"}
+		Else {	
+			$mainExitCode = 200
+			Write-Log -Message "Ultiboard was not installed correctly. Program exe is missing from C:\ProgramFiles (x86)\National Instruments\Circuit Design Suite 14.3\ultiboard.exe " -Severity 3
+		}
+		If (Test-Path -Path "$envProgramFiles\National Instruments\LabVIEW 2020\LabVIEW.exe"){
+			Write-Log -Message "LabVIEW was installed correctly"}
+		Else {	
+			$mainExitCode = 200
+			Write-Log -Message "LabVIEW was not installed correctly. Program exe is missing from C:\Program Files\National Instruments\LabVIEW 2020\LabVIEW.exe" -Severity 3
+		}
 
 		##*===============================================
 		##* POST-INSTALLATION
@@ -198,8 +204,7 @@ Try {
 
 		## <Perform Uninstallation tasks here>
 
-		$exitCode = Execute-Process "$envProgramFiles\National Instruments\NI Package Manager\nipkg.exe" -Parameters "remove --force-essential --force-locked --yes"
-		If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+		$mainExitCode = Execute-Process "$envProgramFiles\National Instruments\NI Package Manager\nipkg.exe" -Parameters "remove --force-essential --force-locked --yes"
 
 
 		##*===============================================
@@ -240,8 +245,7 @@ Try {
 		## <Perform Repair tasks here>
 
 		# Repairs all recommended pacakges
-		$exitCode = Execute-Process "$envCommonProgramFiles\National Instruments\NI Package Manager\nipkg.exe" -Parameters "repair --include-recommended -yes"
-		If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+		$mainExitCode = Execute-Process "$envProgramFiles\National Instruments\NI Package Manager\nipkg.exe" -Parameters "repair --yes --include-recommended"
 
 		##*===============================================
 		##* POST-REPAIR
@@ -271,8 +275,8 @@ Catch {
 # SIG # Begin signature block
 # MIImVgYJKoZIhvcNAQcCoIImRzCCJkMCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBybOtw0VOvlSFn
-# ImHMGQnfS2iiHAa9+byyKUl+gHuxEqCCH8EwggVvMIIEV6ADAgECAhBI/JO0YFWU
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBKGkJzpX6NNCC2
+# y0bWdtPChjig1z3FVihnwJlMIA8p9qCCH8EwggVvMIIEV6ADAgECAhBI/JO0YFWU
 # jTanyYqJ1pQWMA0GCSqGSIb3DQEBDAUAMHsxCzAJBgNVBAYTAkdCMRswGQYDVQQI
 # DBJHcmVhdGVyIE1hbmNoZXN0ZXIxEDAOBgNVBAcMB1NhbGZvcmQxGjAYBgNVBAoM
 # EUNvbW9kbyBDQSBMaW1pdGVkMSEwHwYDVQQDDBhBQUEgQ2VydGlmaWNhdGUgU2Vy
@@ -446,32 +450,32 @@ Catch {
 # ZDErMCkGA1UEAxMiU2VjdGlnbyBQdWJsaWMgQ29kZSBTaWduaW5nIENBIFIzNgIR
 # AKVN33D73PFMVIK48rFyyjEwDQYJYIZIAWUDBAIBBQCggYQwGAYKKwYBBAGCNwIB
 # DDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGCNwIBBDAcBgorBgEE
-# AYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0BCQQxIgQganVRwbMGUUPm
-# i5A0mmTaS9jBsweuD2ox/KKQOq/3thMwDQYJKoZIhvcNAQEBBQAEggGAgefr3K9w
-# Mp9KKzKheBGpd/mWw0pEGHZHYua9yRsMrviDica+DvmBHmfWXJBjn8qXcWhiJyzA
-# QLWg3yduGByod0YYEF6xDRMkRPCcAuWR1xRkhyr3OsYAJ+UQCq44EmrKzMSznzHL
-# CWXxbMu/k0IVcSBMXGIAiGItlWOyIxDRhHr8FkO+AFR1WGMe9/Hgq3ulNLAKWbYr
-# aQYzewj3I3rgwVC8c5vrPZxXHTQXChETEZvyC5VUtB4y/Vp7lS89azGNvqv/CURq
-# nqFr0Q/wSkylvUHAJrCx9cyL9Qj7ZJosTROqCioyl3gKRUUjob71vruZDIQbe4ky
-# gQTDLQM9Pcu4zYUyyEn48WOTN0r2WMCHicJE5KZ381UQMc5wXso1j8VKhVISzzB0
-# YqFBt3/v9iuzKnhFVzS0A/KUJA+0ZsJZ09QC+u/tfhKB22bQgfkPelDBJSL2dDLo
-# 0GsUkd+/63DiBpUJ7sV1dNVGhrILdFvTN+mcn3Rk1K0vikgP1t2G0KaToYIDTDCC
+# AYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0BCQQxIgQghXXeLc8/F9Xz
+# MbKIPqh3EZs+Rk1YnslkcmjttUA4sjIwDQYJKoZIhvcNAQEBBQAEggGAfDicbcrL
+# qNtED6JFDT/9avV9TLbtBA30bzAN04e92bWrlpac0XxDF5xkT2nclP1IMz31tdHO
+# iZRxyZS/l9bhfo2+gqSWhzYJiWBe4z89qLm5uPpbSUI3Z0fCLxE3wxzaEvEEF73b
+# VF0NdoRgAs/5aJmQyXYAKs1nZny+UfmR63U2NPFoQGlIgODkc1fflSfdMfqV0+K5
+# M+1WKaXBX6ohFKG6qaJ7h2im0y0v3hhci+23eVlBjQT3WQHKGq4OwdmPIdro1Mmh
+# z/U4lQRVB+PTNBzaAQVteyTxO3xQClHxUC1c9o8lTuCXwrE8oNWwiyb98HZSC8qL
+# X8unhoCbOWaSX0xxdJBJT5eSnMjXkDbamrNdbUXWTTBozil127ILgQ/pJVZwXP46
+# 5OfsJHfkc1HcMcb4L5tsFeRe2ft9X8c3o/ynS5iOmdcIICFLvwU+WDVzA39p5oym
+# cKvpTFYwL6kck4lkO5e9ZmtSsy4SM4Wo9raFiEW2eG91O3IqZ1ym0i9JoYIDTDCC
 # A0gGCSqGSIb3DQEJBjGCAzkwggM1AgEBMIGSMH0xCzAJBgNVBAYTAkdCMRswGQYD
 # VQQIExJHcmVhdGVyIE1hbmNoZXN0ZXIxEDAOBgNVBAcTB1NhbGZvcmQxGDAWBgNV
 # BAoTD1NlY3RpZ28gTGltaXRlZDElMCMGA1UEAxMcU2VjdGlnbyBSU0EgVGltZSBT
 # dGFtcGluZyBDQQIRAJA5f5rSSjoT8r2RXwg4qUMwDQYJYIZIAWUDBAICBQCgeTAY
-# BgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJBTEPFw0yMjA2MzAw
-# MDQxMDJaMD8GCSqGSIb3DQEJBDEyBDCoy6CieKI55PI58Z+qCMiy25axzvaGslMw
-# kYKn85a+faW3gGQMas1Gt8/XInGK14owDQYJKoZIhvcNAQEBBQAEggIAQd28pyGh
-# 1scVgP9tkrOWbkeHJiP8Eyhc8ijVr4nDDCUtRFTcqCgs66ChCSEbi0/MlfTBB1V8
-# cblR0EgrSo2a0Ohfl9AcsR+Kmt54VQzqfwx8otQRASlYlkE3UJ4pUGO5+nvpai6y
-# Lkrsj8hZQ/S/OafYg7sYGVqHJ1CUqxvxin7apcF/eCCTszQrQOxJEBlh6JMT6H1Q
-# yhsZLQp+WCtrp+Mhok2WOLye+K3ekWgMJFvgj8I21pEGQWJUtOuBr9xGfign1UNP
-# fRIyl2eEuXFVKl03da41TCEYcZSZtc/TWcMtC5c45Rjkus7HXxSsteMDQOzNHTuj
-# tbVS/D1Ahm2YfZlUnXd2aE7OWlP4pcafM6jTWGGGbmR+t6gEJ+lUtYxpfjN/O8PG
-# +vsCITzooq6MvNnZrwPmYjqtEkblE6Mkpu30R5RWjrnf8mnhRLev0Ug90RVUHHY5
-# qqe9/pFcS6JocsJJDuDLrL3JvXqwxg9LFVzZFtCY0/IOOO8/i8viSwqWGaIarzTz
-# Z7AhSGKCiBiZRtDvHG562rSqSzgCnqUXGzcQamN+PfNMl5hqAszl/k1IbIrMCai6
-# gEKbKzqWsDy/Jj5KOo1OYAbq4pEjcvt4YdRM9iJ2/qU0sS5bOTX2nLRAxfDaNf1H
-# 8c1Ys3pnXNViAypAd/CvY6C0rJ7Mqtxc+xU=
+# BgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJBTEPFw0yMjA2MzAy
+# MDMyNDRaMD8GCSqGSIb3DQEJBDEyBDAqewXM2xxhY9zHL5BwCBrqCnzOgmFoBzv2
+# JKC1Gww/r2bz1HHeONm5tZt8TtkezGMwDQYJKoZIhvcNAQEBBQAEggIAG4ZmwAmO
+# PUr081LNH6J6UW5ANoKEwjsD2+3NuzIJF36AHx9/5xcU+X5tRw41kNRdsWXqU5qJ
+# F7u4zEKm3Gnt5knqtL/b96tAwHDfJUrRqDnWUzsOm2RxMzODBhIfVpMJSL5prN4a
+# qZ41KvDF7keVNCf+FZmIq42eWTwNPOtEk3plN/nQZ/A6QyLwcoU7csGHKkKSm+t8
+# H/8eWCgWNnEo3wdSCaFwfe710laJVaXdNyxgvDwutXulNu/epl9Rx8iX7njsGi0x
+# tZWjPOOS1W5uwziYRE2gonx3KeskfNgeeRBVEZAwfh2UmymxqW7CJBAVEOWvXj4t
+# 7KvTMIgkjdlUcvKdFU0MIwLF5hTN4FXFOXioKN4JhQ0aG6iRPOmkBE1Lf3HjIBo1
+# iU2mauf5cH4vtPvM8AYx/BZjPzId+wvh6cNB8Cn9bw36iArnOQxtzeUQQl/HehTs
+# 8ovcB/uiRKRiJ46aKzg+Ga/iZ0Lq0w2qgle7SWBG8iRYQQe9ZTTTyM7pnFFQEt5g
+# qjmcEvYcP2YkDuX9A8xmE0VMNju62RHax3ISYA67tYuTIc7wMkjtD7J0fxhA8ivh
+# FkUFx0g5OYbCtx/YUgFjMRs/CHMekYZmEMqOsuDyxqhXV5X3jdePum1erasUeU8d
+# 86NLKWYK9zYKrU03kkMnZlfZcmdx2C4j+xU=
 # SIG # End signature block
